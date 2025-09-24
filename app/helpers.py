@@ -1,5 +1,13 @@
-import requests
+import requests, uuid
+from datetime import datetime
 from typing import Any 
+
+def gen_id(prefix: str) -> str:
+    return f"{prefix}-{uuid.uuid4()}"
+
+
+def now_dt():
+    return datetime.utcnow()
 
 def get_json(url: str, timeout: int = 10) -> Any:
     response = requests.get(url, timeout=timeout)
