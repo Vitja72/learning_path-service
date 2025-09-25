@@ -7,7 +7,7 @@ load_dotenv()
 
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
 OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
-OPENAI_TEPERATURE = float(os.getenv("OPENAI_TEMPERATURE", "0.1"))
+OPENAI_TEMPERATURE = float(os.getenv("OPENAI_TEMPERATURE", "0.1"))
 
 client = OpenAI(api_key=OPENAI_API_KEY) if OPENAI_API_KEY else None
 
@@ -21,33 +21,42 @@ Verwenden Sie nur IDs, die in den bereitgestellten Katalogen existieren. Kein zu
 """
 
 def ask_openai_for_plan(
-  desired_skills: List[str],
-  desired_topics: List[str],
-  topics: List[Dict[str, Any]],
-  skills: List[Dict[str, Any]],
-  resources: List[Dict[str, Any]]) -> dict[str, Any]:
-    
+    desired_skills: List[str],
+    desired_topics: List[str],
+    topics: List[Dict[str, Any]],
+    skills: List[Dict[str, Any]],
+    resources: List[Dict[str, Any]]) -> Dict[str, Any]:
+
     if not client:
-        raise RuntimeError("OPENAI_API_KEY ist not set in .env")
-    
+        raise RuntimeError("OPENAI_API_KEY is not set in .env")
+
     user_payload = {
         "desiredSkills": desired_skills,
         "desiredTopics": desired_topics,
-        "topics": [{"id": topic.get("id"), "name": topic.get("name")} for topic in  topics],
-        "skills": [{"id": skill.get("id"), "name": skill.get("skill")} for skill in skills],
-        "resources": [{"id": resource.get("id"), "title": resource.get("title"), "description": resource.get("description")} for resource in resources]
-                    
+        "topics": [{
+            "id": topic.get("id"), 
+            "name": topic.get("name")
+            } for topic in topics],
+        "skills": [{
+            "id": skill.get("id"), 
+            "name": skill.get("skill"), 
+            "topicID": skill.get("topicID")
+            } for skill in skills],
+        "resources": [{
+            "id": resource.get("id"),
+            "title": resource.get("title"), 
+            "description": resource.get("description", "")
+        } for resource in resources]
     }
 
     response = client.chat.completions.create(
-        model= OPENAI_MODEL,
-        messages= [
+        model=OPENAI_MODEL,
+        messages=[
             {"role": "system", "content": SYSTEM_PROMPT},
-            {"role": "user", "content": json.dumps(user_payload, ensure_ascii=False)},
+            {"role": "user", "content": json.dumps(user_payload, ensure_ascii=False)}
         ],
-        temperature=OPENAI_TEPERATURE,
+        temperature=OPENAI_TEMPERATURE,
         response_format={"type": "json_object"}
-
     )
 
     return json.loads(response.choices[0].message.content)

@@ -25,7 +25,7 @@ app.add_middleware(
 
 @app.get("/")
 def root():
-    return{"service": "learning-path-generator", "docs":"/docs", "health": "/healthz"}
+    return {"service": "learning-path-generator", "docs":"/docs", "health": "/healthz"}
 
 
 @app.get("/healthz")
@@ -34,7 +34,7 @@ def healthz():
         ping()
     except Exception as e:
         raise HTTPException(500, f"Mongo database down: {e}")
-    return{"status": "ok", "db": "up"}
+    return {"status": "ok", "db": "up"}
 
 
 @app.post("/generate", response_model=LearningPath)
@@ -43,29 +43,28 @@ def generate_path(body: GenerateRequest = Body(...)):
         topics = fetch_topics()
         skills = fetch_skills()
         resources = fetch_resources()
-
     except Exception as e:
         raise HTTPException(502, f"Upstream error: {e}")
     
-    try: 
+    try:
         plan = ask_openai_for_plan(
             body.desiredSkills,
             body.desiredTopics,
             topics,
             skills,
             resources
-        )
+            )
     except Exception as e:
         raise HTTPException(502, f"OpenAI error: {e}")
     
-    milestones: List[Dict[str,Any]] = []
-    for idx, milestone in enumerate(plan.get("milestones", [], start=1)):
+    milestones: List[Dict[str, Any]] = []
+    for idx, milestone in enumerate(plan.get("milestones", []), start=1):
         milestones.append({
-            "milestoneId": milestone.get("milestoneId") or f"n{idx}",
+            "milestoneId": milestone.get("milestoneId") or f"m{idx}",
             "type": milestone.get("type"),
             "label": milestone.get("label"),
-            "skill": milestone.get("skillId"),
-            "topic": milestone.get("topicId"),
+            "skillId": milestone.get("skillId"),
+            "topicId": milestone.get("topicId"),
             "resources": milestone.get("resources", []),
             "status": milestone.get("status", "pending")
         })
@@ -77,7 +76,7 @@ def generate_path(body: GenerateRequest = Body(...)):
         "summary": plan.get("summary", ""),
         "milestones": milestones,
         "createdAt": now_dt(),
-        "updatedAt": now_dt() 
+        "updatedAt": now_dt()
     }
 
     paths.insert_one(doc)
@@ -85,12 +84,14 @@ def generate_path(body: GenerateRequest = Body(...)):
     doc.pop("_id", None)
     return doc
 
+
 @app.get("/paths", response_model=List[LearningPath])
-def list_paths(userId: Optional[str] =Query(None)):
+def list_paths(userId: Optional[str] = Query(None)):
     query = {}
+    
     if userId:
         query["userId"] = userId
-       
+    
     items = list(paths.find(query).sort("createdAt", -1))
 
     for item in items:
@@ -98,9 +99,10 @@ def list_paths(userId: Optional[str] =Query(None)):
 
     return items
 
+
 @app.get("/paths/{pathId}", response_model=LearningPath)
 def get_path(pathId: str = Path(...)):
-    item = paths.find_ome({"pathId": pathId})
+    item = paths.find_one({"pathId": pathId})
 
     if not item:
         raise HTTPException(404, "Not found")
